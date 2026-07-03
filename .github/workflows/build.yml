@@ -9,28 +9,29 @@ jobs:
     - name: Checkout Code Repository
       uses: actions/checkout@v4
 
-    - name: Initialize Android SDK Tools Environment
+    - name: Initialize Android SDK & NDK Environment
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'zulu'
 
+    # Pin a stable NDK version that works perfectly with gomobile
+    - name: Install Android NDK
+      run: |
+        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
+        echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+
     - name: Set up Go compiler
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24' # Forces the correct modern Go environment tracking
+        go-version: '1.24'
 
     - name: Install and Inject Mobile Build Packages
       run: |
-        # 1. Initialize a module if it doesn't exist in the root (failsafe)
         if [ ! -f go.mod ]; then go mod init slidevapp; fi
-
-        # 2. Add the tool directive explicitly to the module graph as requested by Go
         go get -tool golang.org/x/mobile/cmd/gobind
         go get golang.org/x/mobile
         go mod tidy
-        
-        # 3. Install the execution tool binary globally on the runner
         go install golang.org/x/mobile/cmd/gomobile@latest
         gomobile init
 
