@@ -18,17 +18,22 @@ jobs:
     - name: Set up Go compiler
       uses: actions/setup-go@v5
       with:
-        go-version: '1.22'
+        go-version: '1.24' # Using latest Go support template
 
-    - name: Install Mobile Build Packages
+    - name: Install and Inject Mobile Build Packages
       run: |
+        # 1. Force add the mobile/gobind dependencies into the runner's module graph
+        go get golang.org/x/mobile/cmd/gobind
+        go get golang.org/x/mobile
+        go mod tidy
+        
+        # 2. Install the global gomobile tool execution binary
         go install golang.org/x/mobile/cmd/gomobile@latest
         gomobile init
 
     - name: Cross-Compile Go Backend Module
       run: gomobile bind -target=android -o slidevapp.aar .
 
-    # Sets up a lightweight native shell project structure to output the APK layout container
     - name: Generate Lightweight Platform WebView Shell
       run: |
         npm install -g @capacitor/cli @capacitor/core
