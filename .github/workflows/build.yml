@@ -1,0 +1,50 @@
+name: Compile Standalone Mobile APK
+
+on: [push, workflow_dispatch]
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code Repository
+      uses: actions/checkout@v4
+
+    - name: Initialize Android SDK Tools Environment
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'zulu'
+
+    - name: Set up Go compiler
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Install Mobile Build Packages
+      run: |
+        go install golang.org/x/mobile/cmd/gomobile@latest
+        gomobile init
+
+    - name: Cross-Compile Go Backend Module
+      run: gomobile bind -target=android -o slidevapp.aar .
+
+    # Sets up a lightweight native shell project structure to output the APK layout container
+    - name: Generate Lightweight Platform WebView Shell
+      run: |
+        npm install -g @capacitor/cli @capacitor/core
+        npm init -y
+        mkdir www && echo "<html></html>" > www/index.html
+        npx cap init "DAUP Lecture" "com.jingerlab.daup" --web-dir=www
+        npm install @capacitor/android
+        npx cap add android
+        
+    - name: Build and Package Signed Application
+      run: |
+        cd android
+        ./gradlew assembleDebug
+
+    - name: Export Output Artifact Download Link
+      uses: actions/upload-artifact@v4
+      with:
+        name: SlidevPresentationApp
+        path: android/app/build/outputs/apk/debug/app-debug.apk
