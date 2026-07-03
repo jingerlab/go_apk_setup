@@ -9,10 +9,11 @@ jobs:
     - name: Checkout Code Repository
       uses: actions/checkout@v4
 
+    # Fixed: Updated java-version from 17 to 21 to match the Gradle/Capacitor engine requirements
     - name: Initialize Android SDK & NDK Environment
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
+        java-version: '21'
         distribution: 'zulu'
 
     - name: Install Android NDK
@@ -34,7 +35,6 @@ jobs:
         go install golang.org/x/mobile/cmd/gomobile@latest
         gomobile init
 
-    # Fixed: Changed the flag from -api 21 to -androidapi 21
     - name: Cross-Compile Go Backend Module
       run: gomobile bind -target=android -androidapi 21 -o slidevapp.aar .
 
