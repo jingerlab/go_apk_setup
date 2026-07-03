@@ -9,7 +9,6 @@ jobs:
     - name: Checkout Code Repository
       uses: actions/checkout@v4
 
-    # Fixed: Updated java-version from 17 to 21 to match the Gradle/Capacitor engine requirements
     - name: Initialize Android SDK & NDK Environment
       uses: actions/setup-java@v4
       with:
@@ -42,11 +41,49 @@ jobs:
       run: |
         npm install -g @capacitor/cli @capacitor/core
         npm init -y
-        mkdir www && echo "<html></html>" > www/index.html
+        mkdir www && echo "<html><body></body></html>" > www/index.html
         npx cap init "DAUP Lecture" "com.jingerlab.daup" --web-dir=www
         npm install @capacitor/android
         npx cap add android
+
+    # NEW: Link your Go library (.aar) into the Android project build tree
+    - name: Link Go Binary to Gradle
+      run: |
+        mkdir -p android/app/libs
+        cp slidevapp.aar android/app/libs/
         
+        # Inject the library file dependency into the Android app's build rules
+        sed -i '/dependencies {/a \    implementation files("libs/slidevapp.aar")' android/app/build.gradle
+
+    # NEW: Modify Android's startup file to run your Go logic and load the URL it returns
+    - name: Wire Go Engine to MainActivity Startup
+      run: |
+        cat << 'EOF' > android/app/src/main/java/com/jingerlab/daup/MainActivity.java
+        package com.jingerlab.daup;
+
+        import android.os.Bundle;
+        import com.getcapacitor.BridgeActivity;
+        import slidevapp.Slidevapp; // Imports your compiled Go package natively!
+
+        public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                
+                // 1. Run your Go network routing engine execution thread
+                String targetUrl = Slidevapp.initializeAndroidApp();
+                
+                // 2. Overwrite the webview container to point directly to your Go engine's target
+                this.bridge.getWebView().post(new Runnable() {
+                    @Override
+                    public void run() {
+                        bridge.getWebView().loadUrl(targetUrl);
+                    }
+                });
+            }
+        }
+        EOF
+
     - name: Build and Package Signed Application
       run: |
         cd android
